@@ -1,0 +1,374 @@
+# MIF 2.1
+# D. Nikonov et al., "Prooposal of a spin torque majority gate logic", IEEE Electron Device Letters 32, 8 1128 (2011)
+# and its version on ARXIV -> extension to flip flop  by building a I-shape
+package require math::statistics
+set pi       [expr 4*atan(1.0)]
+set mu0      [expr 4*$pi*1e-7]
+set ec       1.602176565e-19; # As
+set mub      9.27400915e-24; # J/T
+set g        2.00231930436153
+set sim_mode 1;# 0...just minimizing energy 1...time dependent problem
+set load_relaxed 0;# 0...relax in time domain 1...load relaxed state
+set Ms       4.0e5; # 4.0e5
+set K1uni    1.0e5; #9.1e4 
+set Aexch    2.0e-11
+Parameter    basename iff_30x120x3_mmp
+### Spin related parameters
+Parameter    current_density   7.0e10; #5.6e11; # 0.5mA over 30x30nm^2
+set plus              $current_density; # up, "0"              
+set minus             [expr {-1.0*$current_density}]; # down, "1"
+set Polarization      0.3
+set epsprime          [expr {$Polarization/2.0*0.1}]
+set alpha             0.01
+set Lambda            2.0
+### angle for starting offset
+set nu                10.0
+set nu                [expr {$nu*$pi/180.}]
+### current is polarized along y-direction in xy-plane
+set mp_theta          90.0 ;# Direction of mp, in degrees 
+set mp_theta          [expr {$mp_theta*$pi/180.}]
+set mp_phi            0.0 ;# Direction of mp in xy-plane and degrees
+set mp_phi            [expr {$mp_phi*$pi/180.}]
+### t1, t2 times for current pulse (relax, on)
+set       t1 0.0e-09
+Parameter t2 2.0e-08
+### introducing nonidelaities in the free layer by adding random fluctuating field
+Parameter strength 0.02
+set field    [expr {$Ms*$strength}]
+# mean of distribution
+set m        0.0
+# width of distribution
+set s        1.0
+###############################################################################################
+###Set atlas and mesh##########################################################################
+###############################################################################################
+#
+#     +-----------+  ----
+#     |           |     |
+#     |           |     |
+#     |    rB     |    c|
+#     |           |     |
+#     |           |     |
+#     +-----------+  -----
+#     |           |     |
+#     |           |     |
+#     |           |     |
+#     |           |     |
+#     |           |     |      
+#     |           |     |
+#     |           |     |
+#     |           |     |
+#     |    rQ     |    b|
+#     |           |     |
+#     |           |     |
+#     |           |     |  
+#     |           |     |
+#     |           |     |
+#     |           |     |
+#     |           |     |
+#     |           |     |
+#     +-----------+   ----
+#     |           |     |
+#     |           |     |
+#     |    rA     |    a|
+#     |           |     |
+#     |           |     |
+#     +-----------+   ----
+#     |     a     |
+#     |-----------|
+#0/0
+##############################################################################################
+##############################################################################################
+###basic definitions for the different lengths needed to describe the structure
+##############################################################################################
+set a          30.0e-9
+set b          [expr {2.0*$a}]
+set c          $a
+set length     [expr {$a+$b+$c}]
+set width      $a
+### This should be a box with about 90 nm x 30 nm x 3nm
+set xycellsize 2.0e-09
+set zcellsize  3.0e-09
+set xsize      [expr {1.0*$width}]
+set ysize      [expr {1.0*$length}]
+set zsize      3.0e-9 
+
+### procedure for mapping to mesh nodes
+proc Round {length cellsize} {
+set remainder [expr {fmod($length, $cellsize)} ]
+if {$remainder < 0.5} {
+return [expr {floor($length/$cellsize) * $cellsize }]
+} else {
+return [expr {ceil($length/$cellsize) * $cellsize }]
+} }
+
+##############################################################################################
+###regions for the cross (with uniaxial anisotropy)
+##############################################################################################
+
+###region A 
+Specify Oxs_BoxAtlas:rA [subst {
+xrange { 0.0 $a }
+yrange { 0.0 $a }
+zrange { 0 $zsize }
+name rA
+}]
+
+###region Q  
+Specify Oxs_BoxAtlas:rQ [subst {
+xrange { 0.0 $a }
+yrange { $a [expr {$a+$b}] }
+zrange { 0 $zsize }
+name rQ
+}]
+
+###region B  
+Specify Oxs_BoxAtlas:rB [subst {
+xrange { 0.0 $a }
+yrange { [expr {$a+$b}] [expr {$a+$b+$c}] }
+zrange { 0 $zsize }
+name rB
+}]
+
+##############################################################################################
+###gluing all regions into one big region
+##############################################################################################
+###Box containing everything
+Specify Oxs_MultiAtlas:world [subst {
+atlas rA
+atlas rQ
+atlas rB
+
+xrange { 0.0 $xsize }
+yrange { 0.0 $ysize }
+zrange { 0.0 $zsize }
+}]
+
+Specify Oxs_RectangularMesh:mesh [subst {
+cellsize { $xycellsize $xycellsize $zcellsize}
+atlas :world
+}]
+
+##############################################################################################
+###defining the energy contributions
+##############################################################################################
+### Defining anisotropy contributions related to region
+
+### the wires exhibit uniaxial anisotropy
+Specify Oxs_UniaxialAnisotropy:uawire [subst {
+K1 { Oxs_AtlasScalarField {  
+        atlas :world
+        default_value 0
+        values {
+                 rA    $K1uni
+                 rQ    $K1uni
+                 rB    $K1uni
+               }
+   }} 
+axis { Oxs_AtlasVectorField {
+       atlas :world 
+       default_value  { 0 0 1 }
+       values {
+                rA    { 0 0 1 }
+                rQ    { 0 0 1 }
+                rB    { 0 0 1 }
+              }
+      }}
+}]
+
+Specify Oxs_UniformExchange [subst {
+A $Aexch 
+}]
+
+Specify Oxs_Demag {}
+
+Specify Oxs_ScriptVectorField:fluctuations [subst {
+atlas :world
+script {normal $m $s}
+script_args {rawpt}
+}]
+
+Specify Oxs_FixedZeeman:zeeman [subst {
+field :fluctuations
+multiplier $field
+}]
+#Specify Oxs_FileVectorField:file_relaxed {
+#comment {file 80nm_45deg_cw_cl_15nm_d1_180_d2_180_relax-Oxs_MinDriver-Magnetization-00-0000476.omf }
+#comment {atlas :world}
+##spatial_scaling { 1 1 1 }
+#spatial_offset  { 0 0 0 }
+#norm 1
+#}
+
+##############################################################################################
+###choosing an evolver - deciding how snd what to solve
+##############################################################################################
+
+
+if {$sim_mode == 0} {
+Specify Oxs_CGEvolve:evolve { }
+
+Specify Oxs_MinDriver [subst {
+ basename [list $basename]
+ evolver :evolve
+ stopping_mxHxm 0.01
+ checkpoint_interval 5
+ mesh :mesh
+ Ms { Oxs_AtlasScalarField {
+      atlas :world
+      default_value 0
+      values {
+                 rA     $Ms 
+                 rQ     $Ms 
+                 rB     $Ms 
+             }
+      }}
+ m0 { Oxs_AtlasVectorField {
+      atlas :world
+      default_value { 0 0 0 }
+      values {
+                rA    { 0 0 1 }
+                rQ    { 0 0 1 }
+                rB    { 0 0 1 }
+             }
+  }}
+}]
+} 
+
+
+if {$sim_mode == 1} {
+
+Specify Oxs_SpinXferEvolve:evolve [subst {
+     alpha          $alpha
+     gamma_G        [expr {2.211e05}]
+     start_dm       0.01
+     do_precess     1
+     P              $Polarization
+     Lambda         $Lambda
+     mp { [expr {cos($mp_phi)*cos($mp_theta)}] [expr {sin($mp_phi)*cos($mp_theta)}] [expr {sin($mp_theta)}] }
+     eps_prime      $epsprime
+     J { Oxs_AtlasScalarField {
+         default_value {0.0}
+         values {
+                 rA     $minus
+                 rB     $minus
+         } 
+         atlas :world
+     }}
+     J_profile {JProfile $t1 $t2}
+     J_profile_args total_time 
+}]
+
+# driver for spin problem
+if {$load_relaxed == 0} {
+Specify Oxs_TimeDriver [subst {
+ basename [list $basename]
+ evolver :evolve
+ stopping_dm_dt 0.01
+ stopping_time { { 0.01e-09 7000 } :expand: } 
+ mesh :mesh
+ Ms { Oxs_AtlasScalarField {
+      atlas :world
+      default_value 0
+      values {
+                 rA     $Ms  
+                 rQ     $Ms  
+                 rB     $Ms  
+             }
+      }}
+ m0 { Oxs_AtlasVectorField {
+      atlas :world
+      default_value { 0 0 0 }
+      values {
+                rA    { [expr {sin($nu)}] 0 [expr {cos($nu)}] }
+                rQ    { [expr {sin($nu)}] 0 [expr {cos($nu)}] }
+                rB    { [expr {sin($nu)}] 0 [expr {cos($nu)}] }
+             }
+  }}
+}]
+}}
+
+#if {$load_relaxed == 1} {
+#Specify Oxs_TimeDriver [subst {
+#basename [list $basename]
+#evolver :evolve
+#stopping_dm_dt 0.01
+#stopping_time { { 0.01e-09 6000 } :expand: }
+#mesh :mesh
+#Ms { Oxs_AtlasScalarField {
+#     atlas :world
+#     default_value 0
+#     values {
+#                r2l     $Ms 
+#                r1l     $Ms 
+#                center  $Ms 
+#                r1r     $Ms 
+#                r2r     $Ms 
+#                r2b     $Ms 
+#                r1b     $Ms 
+#                r1t     $Ms 
+#                r2t     $Ms 
+#            }
+#     }}
+#m0  :file_relaxed
+#]
+#}
+proc Bar { slope os1 os2 w begin end x y z } {
+set yline [expr {$x*$slope} ]
+if { [expr {$y-$yline} ] <= [expr {$w/2.0} ] && [expr {$y-$yline} ] >= [expr {-$w/2.0}] } then { 
+if {$y >= [expr {-1.0*$x/$slope+$os1}] && $y <= [expr {-1.0*$x/$slope+$os2}] } { return 1 } else {return 0} 
+} else { return 0 }
+}
+
+##############################################################################################
+###     +---+
+###     |   |
+### +---+   +---
+### 0< t1< t2< t3
+##############################################################################################
+proc JProfile { ta tb t } {
+set scale 0.0:
+if {$t<$ta} {
+   return 0.0
+   } elseif {$t<$tb} {
+     return 1.0 
+   } else { return 0.0 }
+}
+
+proc uProfile { ta tb t } {
+set scale 0.0:
+if {$t<$ta} {
+     set scale 0.0
+   } elseif {$t<$tb} {
+     set scale 1.0
+   } else { set scale 0.0 }
+return $scale
+}
+
+proc normal { mean stdev x y z } {
+set res  [::math::statistics::random-normal $mean $stdev 3]
+#set res  [list [::math::statistics::random-normal $mean $stdev 1] [::math::statistics::random-normal $mean $stdev 1] [::math::statistics::random-normal $mean $stdev 1]]
+#set res [list [::math::statistics::random-normal 0.0 1.0 1] [::math::statistics::random-normal 0.0 1.0 1] [::math::statistics::random-normal 0.0 1.0 1]]
+return $res
+
+}
+
+if { $sim_mode == 1 } {
+Destination archive mmArchive 
+##Schedule "Oxs_SpinXferEvolve:evolve:J*mp" archive stage 10000
+##Schedule "Oxs_SpinXferEvolve:evolve:Total field" archive stage 10000
+##Schedule "Oxs_SpinXferEvolve:evolve:Total energy density" archive stage 10000
+##Schedule "Oxs_TimeDriver::Spin" archive stage 10000
+##Schedule "Oxs_TimeDriver::Magnetization" archive stage 10000
+Schedule DataTable archive stage 1
+}
+
+
+if { $sim_mode == 0 } {
+Destination archive mmArchive 
+Schedule "Oxs_MinDriver::Magnetization" archive stage 10000
+Schedule "Oxs_MinDriver::Spin" archive stage 10000
+Schedule "Oxs_CGEvolve:evolve:H" archive stage 10000
+Schedule "Oxs_CGEvolve:evolve:Total energy density" archive stage 10000
+Schedule DataTable archive step 1
+}
