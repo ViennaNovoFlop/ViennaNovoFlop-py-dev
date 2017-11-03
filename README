@@ -1,0 +1,54 @@
+###################################################################################
+#ViennaNovoFlop macrospin model readme
+###################################################################################
+
+1) Requirements
+Python 3
+Lybraries: argparse, os, io, time, datetime, math, numpy, scipy, matplotlib, pylab
+
+2) Installation
+Download the macrospin models (.py files). Make sure all the libraries from above are installed on your system.
+
+3) How to run the model
+There are defaults for all parameters. mA_mQ_mB.py employs the argparse library for easy parameter parsing. spice.py uses the same model as mA_mQ_mB.py, but without argparse (everything must be set within the script). mA_mQ.py is a simpliefied version of the previous two, where the system is reduced from three interacting macro spins to only two macro spins.
+
+> python3 mA_mQ_mB.py --help
+
+usage: mA_mQ_mB.py [-h] [-Temperature [TEMPERATURE]] [-Current [CURRENT]]
+                   [-Exchange [EXCHANGE]] [-Contact_Width [CONTACT_WIDTH]]
+                   [-Layer_Depth [LAYER_DEPTH]]
+                   [-Connection_Length [CONNECTION_LENGTH]]
+                   [-Layer_Thickness [LAYER_THICKNESS]] [-Distance [DISTANCE]]
+                   [-t0 [T0]] [-t1 [T1]] [-t2 [T2]] [-tend [TEND]]
+                   [-Plot [PLOT]] [-Verbose [VERBOSE]] [-FileName [FILENAME]]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -Temperature [TEMPERATURE]
+                        Temperature used for the thermal field in Kelvin.
+                        Default is 0.K
+  -Current [CURRENT]    Applied current in Ampere. Default is 0.A.
+  -Exchange [EXCHANGE]  Effective exchange constant in J/m. Default is 2e-11
+                        J/m.
+  -Contact_Width [CONTACT_WIDTH]
+                        Contact width in m. Default is 3.e-8m.
+  -Layer_Depth [LAYER_DEPTH]
+                        Layer depth in m. Default is 3.e-8m.
+  -Connection_Length [CONNECTION_LENGTH]
+                        Distance between contacts in m. Default is 6.e-8m.
+  -Layer_Thickness [LAYER_THICKNESS]
+                        Thickness of the magnetic layer. Default is 3.e-9m.
+  -Distance [DISTANCE]  Distance between centers of neighbouring boxes.
+                        Default is 4.5e-8m.
+  -t0 [T0]              Simulation start time in seconds. Default is 0.
+  -t1 [T1]              Time when current pulse starts in seconds. Default is
+                        0.
+  -t2 [T2]              Time when current pulse ends in seconds. Default is
+                        2.e-9s
+  -tend [TEND]          Time when simulation stops in seconds. Default is
+                        2.e-9s
+  -Plot [PLOT]          Plot the results after the simulation is finished.
+                        Default is True
+  -Verbose [VERBOSE]    Plots the current progress of the simulation and the
+                        time elapsed up to now. Default is False
+  -FileName [FILENAME]  Filename for data dump. Default is test.crv
