@@ -1,1 +1,0 @@
-# STFF_MacroSpin
