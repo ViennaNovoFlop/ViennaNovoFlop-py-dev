@@ -10,7 +10,7 @@ Lybraries: argparse, os, io, time, datetime, math, numpy, scipy, matplotlib, pyl
 Download the macrospin models (.py files). Make sure all the libraries from above are installed on your system.
 
 3) How to run the model
-There are defaults for all parameters. mA_mQ_mB.py employs the argparse library for easy parameter parsing. spice.py uses the same model as mA_mQ_mB.py, but without argparse (everything must be set within the script). mA_mQ.py is a simpliefied version of the previous two, where the system is reduced from three interacting macro spins to only two macro spins.
+There are defaults for all parameters. mA_mQ_mB.py employs the argparse library for easy parameter parsing. spice.py uses the same model as mA_mQ_mB.py, but without argparse (everything must be set within the script). mA_mQ.py is a simplified version of the previous two, where the system is reduced from three interacting macro spins to only two macro spins.
 
 > python3 mA_mQ_mB.py --help
 
